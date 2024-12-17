@@ -145,11 +145,11 @@ const QAReportPDF = ({ report }: { report: QAReport }) => (
     {/* First Page - Checklist */}
     <Page size="A4" style={styles.page}>
       <View style={styles.header}>
-        <Text style={styles.title}>✓3D Asset QA Report</Text>
+        <Text style={styles.title}>3D Asset QA Report</Text>
         <Text style={styles.subtitle}>{report.testerName} - {report.packName}</Text>
         <Text style={styles.metadata}>
-          ✓Report ID: {report.reportId}{'\n'}
-          ✓Generated: {new Date(report.timestamp).toLocaleString()}
+          Report ID: {report.reportId}{'\n'}
+          Generated: {new Date(report.timestamp).toLocaleString()}
         </Text>
       </View>
 
@@ -161,6 +161,7 @@ const QAReportPDF = ({ report }: { report: QAReport }) => (
             const status = report.checklistStatus[category][item];
             return (
               <View key={item} style={styles.checklistItem}>
+				{/* eslint-disable-next-line jsx-a11y/alt-text */}
                 <Image 
                   src={status.checked ? "/checkbox-checked.png" : "/checkbox-empty.png"}
                   style={styles.checkbox}

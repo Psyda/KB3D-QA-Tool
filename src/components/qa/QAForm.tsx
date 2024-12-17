@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { FileText, Plus, Trash2 } from 'lucide-react';
-import type { QAFormProps, QAReport, QAIssue, ChecklistStatus } from '@/components/qa/types';
+import type { QAFormProps, QAReport, QAIssue, ChecklistStatus, ChecklistItem, Severity } from './types';
 
 export const checklistItems = {
   geometry: [
@@ -82,11 +82,19 @@ const QAForm: React.FC<QAFormProps> = ({ onSubmit, initialData, testerName, pack
     onSubmit(report);
   };
 
-  const updateField = (field: keyof Omit<QAReport, 'timestamp' | 'reportId'>, value: any) => {
+  const updateField = (
+    field: keyof Omit<QAReport, 'timestamp' | 'reportId'>,
+    value: string | ChecklistStatus | QAIssue[]
+  ) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
-  const updateChecklistItem = (category: string, item: string, field: keyof ChecklistItem, value: any) => {
+  const updateChecklistItem = (
+    category: string,
+    item: string,
+    field: keyof ChecklistItem,
+    value: boolean | string
+  ) => {
     setFormData(prev => ({
       ...prev,
       checklistStatus: {
@@ -102,7 +110,11 @@ const QAForm: React.FC<QAFormProps> = ({ onSubmit, initialData, testerName, pack
     }));
   };
 
-  const updateIssue = (index: number, field: keyof QAIssue, value: any) => {
+  const updateIssue = (
+    index: number,
+    field: keyof QAIssue,
+    value: string | string[] | Severity
+  ) => {
     setFormData(prev => ({
       ...prev,
       issues: prev.issues.map((issue, i) => 
@@ -118,7 +130,7 @@ const QAForm: React.FC<QAFormProps> = ({ onSubmit, initialData, testerName, pack
         description: '',
         objectName: '',
         materialName: '',
-        severity: 'medium',
+        severity: 'medium' as Severity,
         tags: [],
         notes: '',
         images: []
@@ -148,8 +160,6 @@ const QAForm: React.FC<QAFormProps> = ({ onSubmit, initialData, testerName, pack
     }));
   };
 
-  // Rest of the JSX remains the same as before, just adding type annotations where needed
-
   return (
     <Card className="max-w-4xl mx-auto">
       <CardHeader>
@@ -159,7 +169,7 @@ const QAForm: React.FC<QAFormProps> = ({ onSubmit, initialData, testerName, pack
         </CardTitle>
       </CardHeader>
       <CardContent>
-        {/* Form JSX remains the same */}
+        {/* Form JSX */}
         <div className="space-y-8">
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">

@@ -157,6 +157,29 @@ const QAReportApp = () => {
     );
   }
 
+  const renderDownloadButton = () => {
+    if (!report) return null;
+
+    return (
+      <PDFDownloadLink
+        document={<QAReportPDF report={report} />}
+        fileName={`${report.testerName}-${report.packName}-QA-Report.pdf`}
+      >
+		{/* @ts-expect-error: react-pdf known issue with PDFDownloadLink render prop types https://github.com/diegomura/react-pdf/issues/2886 */}
+        {({ loading }) => (
+          <Button
+            variant="outline"
+            className="flex items-center gap-2"
+            disabled={loading}
+          >
+            <FileDown className="w-4 h-4" />
+            {loading ? 'Preparing PDF...' : 'Download PDF'}
+          </Button>
+        )}
+      </PDFDownloadLink>
+    );
+  };
+
   return (
     <div>
       <div className="max-w-4xl mx-auto mb-4 flex justify-between">
@@ -176,23 +199,7 @@ const QAReportApp = () => {
             <Download className="w-4 h-4" />
             Download JSON
           </Button>
-          {report && (
-            <PDFDownloadLink
-              document={<QAReportPDF report={report} />}
-              fileName={`${report.testerName}-${report.packName}-QA-Report.pdf`}
-            >
-              {({ loading }) => (
-                <Button
-                  variant="outline"
-                  className="flex items-center gap-2"
-                  disabled={loading}
-                >
-                  <FileDown className="w-4 h-4" />
-                  {loading ? 'Preparing PDF...' : 'Download PDF'}
-                </Button>
-              )}
-            </PDFDownloadLink>
-          )}
+          {renderDownloadButton()}
         </div>
       </div>
       {report && <QAReportRenderer report={report} />}

@@ -38,3 +38,5 @@ export interface QAFormProps {
 export interface QARendererProps {
   report: QAReport;
 }
+
+export type Severity = 'critical' | 'high' | 'medium' | 'low' | 'trivial';

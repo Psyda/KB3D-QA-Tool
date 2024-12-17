@@ -1,12 +1,8 @@
 'use client'; 
 import { Card } from "@/components/ui/card";
 import { checklistItems } from './QAForm';  // Import shared constants
-import { useState, useRef } from "react";
-import type { QARendererProps } from '@/components/qa/types';
-import { Button } from "@/components/ui/button";
-import { FileText, Download } from 'lucide-react';
+import { useRef } from "react";
 import type { QARendererProps } from './types';
-import html2canvas from 'html2canvas';
 
 const severityColors = {
   critical: "bg-red-100 border-red-500",
