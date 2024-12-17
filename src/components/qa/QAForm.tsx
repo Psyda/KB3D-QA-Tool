@@ -1,11 +1,13 @@
 'use client'; 
-import { useState, useEffect  } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { FileText, Plus, Trash2 } from 'lucide-react';
+import { ImagePlus } from 'lucide-react';
 import type { QAFormProps, QAReport, QAIssue, ChecklistStatus, ChecklistItem, Severity } from './types';
 
 export const checklistItems = {
@@ -36,10 +38,64 @@ export const checklistItems = {
 
 export const issueTags = [
   "Cosmetic", "Text/language", "Texture", "UV", "Normal map", 
-  "Geometry", "Major Concern", "Minor Concern", "Nitpicking"
+  "Geometry", "Intersecting faces", "Major Concern", "Moderate Concern", "Minor Concern", "Nitpicking"
 ] as const;
 
+// QOL Helper functions
+const AUTOSAVE_INTERVAL = 30000; // 30 seconds
+const TEMP_STORAGE_KEY = (testerName: string, packName: string) => 
+  `qa-form-temp-${testerName}-${packName}`;
+
+const saveToTempStorage = (data: Partial<QAReport>, testerName: string, packName: string) => {
+  if (!testerName || !packName) return;
+  
+  try {
+    const key = TEMP_STORAGE_KEY(testerName, packName);
+    const saveData = {
+      ...data,
+      lastSaved: new Date().toISOString()
+    };
+    localStorage.setItem(key, JSON.stringify(saveData));
+  } catch (error) {
+    console.error('Error saving temporary data:', error);
+  }
+};
+
+const loadFromTempStorage = (testerName: string, packName: string) => {
+  if (!testerName || !packName) return null;
+  
+  try {
+    const key = TEMP_STORAGE_KEY(testerName, packName);
+    const savedData = localStorage.getItem(key);
+    if (!savedData) return null;
+    
+    const parsedData = JSON.parse(savedData);
+    // Check if the temp data is less than 24 hours old
+    const lastSaved = new Date(parsedData.lastSaved);
+    const now = new Date();
+    const hoursSinceLastSave = (now.getTime() - lastSaved.getTime()) / (1000 * 60 * 60);
+    
+    if (hoursSinceLastSave > 24) {
+      localStorage.removeItem(key);
+      return null;
+    }
+    
+    return parsedData;
+  } catch (error) {
+    console.error('Error loading temporary data:', error);
+    return null;
+  }
+};
+
+const clearTempStorage = (testerName: string, packName: string) => {
+  if (!testerName || !packName) return;
+  const key = TEMP_STORAGE_KEY(testerName, packName);
+  localStorage.removeItem(key);
+};
+
+// QAForm component to include autosave
 const QAForm: React.FC<QAFormProps> = ({ onSubmit, initialData, testerName, packName }) => {
+  const { toast } = useToast();
   const [formData, setFormData] = useState<Omit<QAReport, 'timestamp' | 'reportId'>>({
     testerName,
     packName,
@@ -47,7 +103,28 @@ const QAForm: React.FC<QAFormProps> = ({ onSubmit, initialData, testerName, pack
     issues: []
   });
 
+  // Add autosave functionality
+  const performAutosave = useCallback(() => {
+    saveToTempStorage(formData, testerName, packName);
+  }, [formData, testerName, packName]);
+
   useEffect(() => {
+    // Check for temporary data on initial load
+    if (!initialData) {
+      const tempData = loadFromTempStorage(testerName, packName);
+      if (tempData) {
+        const hoursSinceLastSave = (new Date().getTime() - new Date(tempData.lastSaved).getTime()) / (1000 * 60 * 60);
+        toast({
+          title: "Restored unsaved progress",
+          description: `Found unsaved work from ${Math.round(hoursSinceLastSave)} hours ago.`,
+          duration: 5000,
+        });
+        setFormData(tempData);
+        return;
+      }
+    }
+
+    // Initialize form data
     const initialChecklist = Object.entries(checklistItems).reduce((acc, [category, items]) => {
       acc[category] = items.reduce((itemAcc, item) => {
         itemAcc[item] = initialData?.checklistStatus?.[category]?.[item] || { checked: false, notes: '' };
@@ -71,8 +148,25 @@ const QAForm: React.FC<QAFormProps> = ({ onSubmit, initialData, testerName, pack
         images: []
       }]
     }));
-  }, [initialData, testerName, packName]);
+  }, [initialData, testerName, packName, toast]);
 
+  // Set up autosave interval
+  useEffect(() => {
+    const intervalId = setInterval(performAutosave, AUTOSAVE_INTERVAL);
+    
+    // Save on window close/refresh
+    const handleBeforeUnload = () => {
+      performAutosave();
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    
+    return () => {
+      clearInterval(intervalId);
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [performAutosave]);
+
+  // HandleSubmit to clear temp storage on successful submission
   const handleSubmit = () => {
     const report: QAReport = {
       ...formData,
@@ -80,6 +174,7 @@ const QAForm: React.FC<QAFormProps> = ({ onSubmit, initialData, testerName, pack
       reportId: initialData?.reportId || `QA-${Date.now()}`
     };
     onSubmit(report);
+    clearTempStorage(testerName, packName);
   };
 
   const updateField = (
@@ -300,6 +395,87 @@ const QAForm: React.FC<QAFormProps> = ({ onSubmit, initialData, testerName, pack
                       placeholder="Additional notes..."
                       className="h-24"
                     />
+				  </div>
+
+                  <div className="space-y-2">
+                    <Label>Images</Label>
+                    <div className="space-y-4">
+                      <div className="flex flex-wrap gap-4">
+                        {issue.images.map((image, imgIndex) => (
+                          <div key={imgIndex} className="relative">
+							{/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                              src={image}
+                              alt={`Issue image ${imgIndex + 1}`}
+                              className="w-32 h-32 object-cover rounded border"
+                            />
+                            <Button
+                              variant="destructive"
+                              size="icon"
+                              className="absolute -top-2 -right-2 w-6 h-6"
+                              onClick={() => {
+                                const newImages = issue.images.filter((_, i) => i !== imgIndex);
+                                updateIssue(index, 'images', newImages);
+                              }}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                      
+                      {issue.images.length < 5 && (
+                        <div>
+                          <Input
+                            type="file"
+                            accept="image/*"
+                            multiple
+                            onChange={async (e) => {
+                              const files = Array.from(e.target.files || []);
+                              const maxSizeMB = 5;
+                              const newImages: string[] = [];
+
+                              for (const file of files) {
+                                if (file.size > maxSizeMB * 1024 * 1024) {
+                                  alert(`File ${file.name} is too large. Maximum size is ${maxSizeMB}MB.`);
+                                  continue;
+                                }
+
+                                try {
+                                  const base64 = await new Promise<string>((resolve, reject) => {
+                                    const reader = new FileReader();
+                                    reader.onload = () => resolve(reader.result as string);
+                                    reader.onerror = reject;
+                                    reader.readAsDataURL(file);
+                                  });
+                                  newImages.push(base64);
+                                } catch (error) {
+                                  console.error('Error processing image:', error);
+                                }
+                              }
+
+                              const updatedImages = [...issue.images, ...newImages].slice(0, 5);
+                              updateIssue(index, 'images', updatedImages);
+                              e.target.value = '';
+                            }}
+                            className="hidden"
+                            id={`image-upload-${index}`}
+                          />
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => document.getElementById(`image-upload-${index}`)?.click()}
+                            className="flex items-center gap-2"
+                          >
+                            <ImagePlus className="w-4 h-4" />
+                            Add Images
+                          </Button>
+                          <p className="text-sm text-gray-500 mt-1">
+                            Max 5 images, 5MB each. {5 - issue.images.length} remaining.
+                          </p>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               </Card>

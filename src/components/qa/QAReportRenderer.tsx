@@ -109,6 +109,22 @@ const QAReportRenderer: React.FC<QARendererProps> = ({ report }) => {
                       {issue.notes}
                     </div>
                   )}
+
+                  {issue.images.length > 0 && (
+                    <div className="mt-4">
+                      <div className="font-medium mb-2">Attached Images:</div>
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                        {issue.images.map((image, imgIndex) => (
+                          <img
+                            key={imgIndex}
+                            src={image}
+                            alt={`Issue image ${imgIndex + 1}`}
+                            className="w-full h-48 object-cover rounded border"
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

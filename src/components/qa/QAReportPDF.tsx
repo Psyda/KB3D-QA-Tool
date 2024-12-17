@@ -1,5 +1,5 @@
 'use client'; 
-import { Page, Text, Font, View, Document, StyleSheet, Image } from '@react-pdf/renderer';
+import { Page, Text, Font, View, Document, StyleSheet, Image, Link } from '@react-pdf/renderer';
 import type { QAReport } from './types';
 import { checklistItems } from './QAForm';
 
@@ -138,7 +138,49 @@ const styles = StyleSheet.create({
   legendText: {
     fontSize: 10,
   },
+  link: {
+  color: '#4da6ff',
+  textDecoration: 'underline'
+  },
 });
+
+const parseTextWithUrls = (text: string) => {
+  const urlRegex = /(https?:\/\/[^\s]+)/g;
+  let lastIndex = 0;
+  const result: React.ReactNode[] = [];
+  let match;
+
+  while ((match = urlRegex.exec(text)) !== null) {
+    // Add text before the URL
+    if (match.index > lastIndex) {
+      result.push(
+        <Text key={`text-${lastIndex}`}>
+          {text.slice(lastIndex, match.index)}
+        </Text>
+      );
+    }
+
+    // Add the URL as a link
+    result.push(
+      <Link key={`link-${match.index}`} src={match[0]}>
+        <Text style={styles.link}>{match[0]}</Text>
+      </Link>
+    );
+
+    lastIndex = match.index + match[0].length;
+  }
+
+  // Add any remaining text after the last URL
+  if (lastIndex < text.length) {
+    result.push(
+      <Text key={`text-${lastIndex}`}>
+        {text.slice(lastIndex)}
+      </Text>
+    );
+  }
+
+  return result;
+};
 
 const QAReportPDF = ({ report }: { report: QAReport }) => (
   <Document>
@@ -217,7 +259,7 @@ const QAReportPDF = ({ report }: { report: QAReport }) => (
               </Text>
             )}
 
-            <Text style={styles.issueDescription}>{issue.description}</Text>
+            <Text style={styles.issueDescription}>{parseTextWithUrls(issue.description)}</Text>
 
             {issue.tags.length > 0 && (
               <View style={styles.tags}>
@@ -230,7 +272,27 @@ const QAReportPDF = ({ report }: { report: QAReport }) => (
             {issue.notes && (
               <View>
                 <Text style={{ fontSize: 12, fontWeight: 'bold' }}>Additional Notes:</Text>
-                <Text style={styles.notes}>{issue.notes}</Text>
+                <Text style={styles.notes}>{parseTextWithUrls(issue.notes)}</Text>
+              </View>
+            )}
+
+            {issue.images.length > 0 && (
+              <View>
+                <Text style={{ fontSize: 12, fontWeight: 'bold', marginTop: 10, marginBottom: 5 }}>
+                  Attached Images:
+                </Text>
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
+                  {issue.images.map((imageData, idx) => {
+                    // Remove base64 prefix if present
+                    const base64Data = imageData.split(',')[1] || imageData;
+                    return (
+                      <View key={idx} style={{ width: 200, height: 200 }}>
+						{/* eslint-disable-next-line jsx-a11y/alt-text */}
+                        <Image src={`data:image/jpeg;base64,${base64Data}`} />
+                      </View>
+                    );
+                  })}
+                </View>
               </View>
             )}
           </View>
