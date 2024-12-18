@@ -1,6 +1,6 @@
 'use client'; 
 import { Card } from "@/components/ui/card";
-import { checklistItems } from './QAForm';  // Import shared constants
+import { checklistItems } from './constants';
 import { useRef } from "react";
 import type { QARendererProps } from './types';
 

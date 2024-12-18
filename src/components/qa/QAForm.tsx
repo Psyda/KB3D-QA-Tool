@@ -8,38 +8,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { FileText, Plus, Trash2 } from 'lucide-react';
 import { ImagePlus } from 'lucide-react';
+import { checklistItems, issueTags  } from './constants';
 import type { QAFormProps, QAReport, QAIssue, ChecklistStatus, ChecklistItem, Severity } from './types';
-
-export const checklistItems = {
-  geometry: [
-    "Check for realistic scale",
-    "Overall orientation",
-    "Objects are grouped logically",
-    "Pivots are placed logically",
-    "Smoothing groups are applied",
-    "Normals are correct",
-    "There is no floating geometry",
-    "There is no intersecting geometry"
-  ],
-  uv: [
-    "Check for stretching and/or seams",
-    "Check for non-overlapping UVs"
-  ],
-  textures: [
-    "Naming Conventions are consistent and work in Software/Renderer",
-    "Make sure none of the textures are missing",
-    "Check that textures don't tile in an obvious way",
-    "Materials are applied to objects logically"
-  ],
-  shaders: [
-    "PBR node setup is accurate in each renderer"
-  ]
-} as const;
-
-export const issueTags = [
-  "Cosmetic", "Text/language", "Texture", "UV", "Normal map", 
-  "Geometry", "Intersecting faces", "Major Concern", "Moderate Concern", "Minor Concern", "Nitpicking"
-] as const;
 
 // QOL Helper functions
 const AUTOSAVE_INTERVAL = 30000; // 30 seconds
@@ -395,7 +365,7 @@ const QAForm: React.FC<QAFormProps> = ({ onSubmit, initialData, testerName, pack
                       placeholder="Additional notes..."
                       className="h-24"
                     />
-				  </div>
+                                    </div>
 
                   <div className="space-y-2">
                     <Label>Images</Label>
@@ -403,7 +373,6 @@ const QAForm: React.FC<QAFormProps> = ({ onSubmit, initialData, testerName, pack
                       <div className="flex flex-wrap gap-4">
                         {issue.images.map((image, imgIndex) => (
                           <div key={imgIndex} className="relative">
-							{/* eslint-disable-next-line @next/next/no-img-element */}
                             <img
                               src={image}
                               alt={`Issue image ${imgIndex + 1}`}
@@ -468,8 +437,9 @@ const QAForm: React.FC<QAFormProps> = ({ onSubmit, initialData, testerName, pack
                             className="flex items-center gap-2"
                           >
                             <ImagePlus className="w-4 h-4" />
-                            Add Images
+                            Add Images (buggy!)
                           </Button>
+							<p className="text-sm text-gray-800 mt-1">I <strong>strongly</strong> recommend google drive for hosting as this is quite buggy at the moment and sometimes doesn&apos;t render in the final PDF.</p>
                           <p className="text-sm text-gray-500 mt-1">
                             Max 5 images, 5MB each. {5 - issue.images.length} remaining.
                           </p>

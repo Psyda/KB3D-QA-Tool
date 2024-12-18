@@ -1,7 +1,7 @@
 'use client'; 
 import { Page, Text, Font, View, Document, StyleSheet, Image, Link } from '@react-pdf/renderer';
 import type { QAReport } from './types';
-import { checklistItems } from './QAForm';
+import { checklistItems } from './constants';
 
 // Register Font
 Font.register({
@@ -182,6 +182,26 @@ const parseTextWithUrls = (text: string) => {
   return result;
 };
 
+const processImageSrc = (imageData: string) => {
+  try {
+    // If it's already a base64 string without data URI prefix
+    if (!imageData.includes('data:')) {
+      return imageData;
+    }
+    
+    // If it's a data URI, extract the base64 part
+    const matches = imageData.match(/^data:image\/(png|jpeg|jpg|gif);base64,(.+)$/);
+    if (matches) {
+      return matches[2];
+    }
+    
+    return imageData;
+  } catch (error) {
+    console.error('Error processing image:', error);
+    return null;
+  }
+};
+
 const QAReportPDF = ({ report }: { report: QAReport }) => (
   <Document>
     {/* First Page - Checklist */}
@@ -276,19 +296,26 @@ const QAReportPDF = ({ report }: { report: QAReport }) => (
               </View>
             )}
 
-            {issue.images.length > 0 && (
+            {issue.images && issue.images.length > 0 && (
               <View>
                 <Text style={{ fontSize: 12, fontWeight: 'bold', marginTop: 10, marginBottom: 5 }}>
                   Attached Images:
                 </Text>
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
                   {issue.images.map((imageData, idx) => {
-                    // Remove base64 prefix if present
-                    const base64Data = imageData.split(',')[1] || imageData;
+                    const base64Data = processImageSrc(imageData);
+                    if (!base64Data) return null;
+                    
                     return (
-                      <View key={idx} style={{ width: 200, height: 200 }}>
-						{/* eslint-disable-next-line jsx-a11y/alt-text */}
-                        <Image src={`data:image/jpeg;base64,${base64Data}`} />
+                      <View key={idx} style={{ width: 200, height: 200, marginBottom: 10 }}>
+                        <Image
+                          src={`data:image/jpeg;base64,${base64Data}`}
+                          style={{
+                            width: '100%',
+                            height: '100%',
+                            objectFit: 'contain'
+                          }}
+                        />
                       </View>
                     );
                   })}
