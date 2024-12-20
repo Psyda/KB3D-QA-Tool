@@ -6,30 +6,79 @@ import type { QAReport } from './types';
 import { checklistItems } from './constants';
 import { getImage } from './indexedDBUtils';
 
-// Register Font
 Font.register({
-  family: "Roboto",
+  family: 'Inter',
   fonts: [
-    { src: "https://cdnjs.cloudflare.com/ajax/libs/ink/3.1.10/fonts/Roboto/roboto-light-webfont.ttf", fontWeight: 300 },
-    { src: "https://cdnjs.cloudflare.com/ajax/libs/ink/3.1.10/fonts/Roboto/roboto-regular-webfont.ttf", fontWeight: 400 },
-    { src: "https://cdnjs.cloudflare.com/ajax/libs/ink/3.1.10/fonts/Roboto/roboto-medium-webfont.ttf", fontWeight: 500 },
-    { src: "https://cdnjs.cloudflare.com/ajax/libs/ink/3.1.10/fonts/Roboto/roboto-bold-webfont.ttf", fontWeight: 600 },
+    {
+      src: 'http://fonts.gstatic.com/s/inter/v12/UcCO3FwrK3iLTeHuS_fvQtMwCp50KnMw2boKoduKmMEVuLyeMZhrib2Bg-4.ttf',
+      fontWeight: 100,
+    },
+    {
+      src: 'http://fonts.gstatic.com/s/inter/v12/UcCO3FwrK3iLTeHuS_fvQtMwCp50KnMw2boKoduKmMEVuDyfMZhrib2Bg-4.ttf',
+      fontWeight: 200,
+    },
+    {
+      src: 'http://fonts.gstatic.com/s/inter/v12/UcCO3FwrK3iLTeHuS_fvQtMwCp50KnMw2boKoduKmMEVuOKfMZhrib2Bg-4.ttf',
+      fontWeight: 300,
+    },
+    {
+      src: 'http://fonts.gstatic.com/s/inter/v12/UcCO3FwrK3iLTeHuS_fvQtMwCp50KnMw2boKoduKmMEVuLyfMZhrib2Bg-4.ttf',
+      fontWeight: 400,
+    },
+    {
+      src: 'http://fonts.gstatic.com/s/inter/v12/UcCO3FwrK3iLTeHuS_fvQtMwCp50KnMw2boKoduKmMEVuI6fMZhrib2Bg-4.ttf',
+      fontWeight: 500,
+    },
+    {
+      src: 'http://fonts.gstatic.com/s/inter/v12/UcCO3FwrK3iLTeHuS_fvQtMwCp50KnMw2boKoduKmMEVuGKYMZhrib2Bg-4.ttf',
+      fontWeight: 600,
+    },
+    {
+      src: 'http://fonts.gstatic.com/s/inter/v12/UcCO3FwrK3iLTeHuS_fvQtMwCp50KnMw2boKoduKmMEVuFuYMZhrib2Bg-4.ttf',
+      fontWeight: 700,
+    },
+    {
+      src: 'http://fonts.gstatic.com/s/inter/v12/UcCO3FwrK3iLTeHuS_fvQtMwCp50KnMw2boKoduKmMEVuDyYMZhrib2Bg-4.ttf',
+      fontWeight: 800,
+    },
+    {
+      src: 'http://fonts.gstatic.com/s/inter/v12/UcCO3FwrK3iLTeHuS_fvQtMwCp50KnMw2boKoduKmMEVuBWYMZhrib2Bg-4.ttf',
+      fontWeight: 900,
+    },
   ],
 });
 
-const severityColors = {
-  critical: '#FFEBEE',
-  high: '#FFF3E0',
-  medium: '#FFF8E1',
-  low: '#E3F2FD',
+type Severity = 'critical' | 'high' | 'medium' | 'low' | 'trivial';
+
+const severityColors: Record<Severity, string> = {
+  critical: '#FEE2E2',
+  high: '#FFEDD5',
+  medium: '#FEF9C3',
+  low: '#DBEAFE',
   trivial: '#F5F5F5'
+};
+
+const severityBackgrounds: Record<Severity, string> = {
+  critical: '#FEE2E2',
+  high: '#FFEDD5',
+  medium: '#FEF9C3',
+  low: '#DBEAFE',
+  trivial: '#F5F5F5'
+};
+
+const borderColors: Record<Severity, string> = {
+  critical: '#EF4444',  // red-500
+  high: '#F97316',      // orange-500
+  medium: '#EAB308',    // yellow-500
+  low: '#3B82F6',       // blue-500
+  trivial: '#6B7280'    // gray-500
 };
 
 const styles = StyleSheet.create({
   page: {
     padding: 30,
     backgroundColor: "#ffffff",
-    fontFamily: 'Roboto',
+    fontFamily: 'Inter',
   },
   header: {
     marginBottom: 20,
@@ -38,10 +87,14 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 24,
     marginBottom: 10,
+    fontWeight: 'bold',
   },
   subtitle: {
     fontSize: 16,
     marginBottom: 5,
+  },
+  testerName: {
+    fontWeight: 'bold',
   },
   metadata: {
     fontSize: 10,
@@ -52,9 +105,10 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   sectionTitle: {
-    fontSize: 18,
+    fontSize: 17,
     marginBottom: 10,
-    fontWeight: 'bold',
+    fontFamily: 'Inter',
+    fontWeight: 'medium'
   },
   checklistItem: {
     flexDirection: 'row',
@@ -76,11 +130,16 @@ const styles = StyleSheet.create({
     marginLeft: 20,
     marginTop: 4,
   },
+  issuesContainer: {
+    display: 'flex',
+    flexDirection: 'column',
+  },
   issue: {
     marginBottom: 15,
     padding: 10,
-    backgroundColor: '#f8f8f8',
-    breakInside: 'avoid',
+    borderRadius: 4,
+    borderLeftWidth: 4,
+    borderLeftStyle: 'solid',
   },
   issueHeader: {
     flexDirection: 'row',
@@ -89,7 +148,8 @@ const styles = StyleSheet.create({
   },
   issueTitle: {
     fontSize: 14,
-    fontWeight: 'bold',
+    fontFamily: 'Inter',
+    fontWeight: 'medium'
   },
   issueSeverity: {
     fontSize: 12,
@@ -101,7 +161,9 @@ const styles = StyleSheet.create({
     marginBottom: 5,
   },
   issueDescription: {
-    fontSize: 12,
+    fontSize: 11,
+    fontFamily: 'Inter',
+    fontWeight: 'light',
     marginBottom: 5,
   },
   tags: {
@@ -117,33 +179,42 @@ const styles = StyleSheet.create({
     borderRadius: 3,
   },
   severityLegend: {
-    marginTop: 15,
-    marginBottom: 20,
-    padding: 10,
-    backgroundColor: '#f8f8f8',
-  },
-  legendTitle: {
-    fontSize: 12,
-    fontWeight: 'bold',
-    marginBottom: 5,
+    marginTop: 4,
+    marginBottom: 12,
+    flexDirection: 'row',
+    gap: 16,
   },
   legendItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 4,
   },
   legendColor: {
-    width: 16,
-    height: 16,
-    marginRight: 8,
+    width: 12,
+    height: 12,
+    marginRight: 4,
     borderRadius: 2,
   },
   legendText: {
     fontSize: 10,
   },
   link: {
-  color: '#4da6ff',
-  textDecoration: 'underline'
+    color: '#4da6ff',
+    textDecoration: 'underline'
+  },
+  imageContainer: {
+    marginTop: 10,
+    marginBottom: 10,
+  },
+  imagesGrid: {
+    display: 'flex',
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  imageWrapper: {
+    width: 200,
+    height: 200,
+    marginBottom: 10,
   },
 });
 
@@ -154,7 +225,6 @@ const parseTextWithUrls = (text: string) => {
   let match;
 
   while ((match = urlRegex.exec(text)) !== null) {
-    // Add text before the URL
     if (match.index > lastIndex) {
       result.push(
         <Text key={`text-${lastIndex}`}>
@@ -163,7 +233,6 @@ const parseTextWithUrls = (text: string) => {
       );
     }
 
-    // Add the URL as a link
     result.push(
       <Link key={`link-${match.index}`} src={match[0]}>
         <Text style={styles.link}>{match[0]}</Text>
@@ -173,7 +242,6 @@ const parseTextWithUrls = (text: string) => {
     lastIndex = match.index + match[0].length;
   }
 
-  // Add any remaining text after the last URL
   if (lastIndex < text.length) {
     result.push(
       <Text key={`text-${lastIndex}`}>
@@ -189,133 +257,148 @@ interface QAReportPDFProps {
   report: QAReport;
 }
 
-const PDFReport = ({ report, loadedImages }: { report: QAReport; loadedImages: Record<string, string> }) => (
-  <Document>
-    {/* First Page - Checklist */}
-    <Page size="A4" style={styles.page}>
-      <View style={styles.header}>
-        <Text style={styles.title}>3D Asset QA Report</Text>
-        <Text style={styles.subtitle}>{report.testerName} - {report.packName}</Text>
-        <Text style={styles.metadata}>
-          Report ID: {report.reportId}{'\n'}
-          Generated: {new Date(report.timestamp).toLocaleString()}
-        </Text>
-      </View>
-
-      {/* Checklist Sections */}
-      {Object.entries(checklistItems).map(([category, items]) => (
-        <View key={category} style={styles.section}>
-          <Text style={styles.sectionTitle}>
-            {category.charAt(0).toUpperCase() + category.slice(1)}
+const PDFReport = ({ report, loadedImages }: { report: QAReport; loadedImages: Record<string, string> }) => {
+  return (
+    <Document>
+      <Page size={[695.276, 'auto']} style={styles.page}>
+        <View style={styles.header}>
+          <Text style={styles.title}>3D Asset QA Report</Text>
+          <Text style={styles.subtitle}>
+            <Text style={styles.testerName}>{report.testerName}</Text>
+            {" - "}
+            {report.packName}
           </Text>
-          {items.map(item => {
-            const status = report.checklistStatus[category][item];
-            return (
-              <View key={item} style={styles.checklistItem}>
-                <Image
-                  src={status.checked ? "/checkbox-checked.png" : "/checkbox-empty.png"}
-                  style={styles.checkbox}
-                />
-                <View style={styles.checklistText}>
-                  <Text>{item}</Text>
-                  {status.notes && (
-                    <Text style={styles.notes}>{status.notes}</Text>
-                  )}
-                </View>
-              </View>
-            );
-          })}
-        </View>
-      ))}
-    </Page>
-
-    {/* Second Page - Issues */}
-    <Page size="A4" style={styles.page}>
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Issues Found</Text>
-
-        {/* Severity Legend */}
-        <View style={styles.severityLegend}>
-          <Text style={styles.legendTitle}>Severity Levels:</Text>
-          {Object.entries(severityColors).map(([severity, color]) => (
-            <View key={severity} style={styles.legendItem}>
-              <View style={[styles.legendColor, { backgroundColor: color }]} />
-              <Text style={styles.legendText}>
-                {severity.charAt(0).toUpperCase() + severity.slice(1)}
-              </Text>
-            </View>
-          ))}
+          <Text style={styles.metadata}>
+            Report ID: {report.reportId}{'\n'}
+            Generated: {new Date(report.timestamp).toLocaleString()}
+          </Text>
         </View>
 
-        {report.issues.map((issue, index) => (
-          <View
-            key={index}
-            style={[
-              styles.issue,
-              { backgroundColor: severityColors[issue.severity] }
-            ]}
-          >
-            <View style={styles.issueHeader}>
-              <Text style={styles.issueTitle}>Issue #{index + 1}</Text>
-              <Text style={styles.issueSeverity}>{issue.severity} Priority</Text>
-            </View>
-
-            {(issue.objectName || issue.materialName) && (
-              <Text style={styles.issueMetadata}>
-                {issue.objectName && `Object: ${issue.objectName}\n`}
-                {issue.materialName && `Material: ${issue.materialName}`}
-              </Text>
-            )}
-
-            <Text style={styles.issueDescription}>{parseTextWithUrls(issue.description)}</Text>
-
-            {issue.tags.length > 0 && (
-              <View style={styles.tags}>
-                {issue.tags.map(tag => (
-                  <Text key={tag} style={styles.tag}>{tag}</Text>
-                ))}
-              </View>
-            )}
-
-            {issue.notes && (
-              <View>
-                <Text style={{ fontSize: 12, fontWeight: 'bold' }}>Additional Notes:</Text>
-                <Text style={styles.notes}>{parseTextWithUrls(issue.notes)}</Text>
-              </View>
-            )}
-
-            {issue.imageIds && issue.imageIds.length > 0 && (
-              <View>
-                <Text style={{ fontSize: 12, fontWeight: 'bold', marginTop: 10, marginBottom: 5 }}>
-                  Attached Images:
-                </Text>
-                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
-                  {issue.imageIds.map((imageId, idx) => {
-                    const imageUrl = loadedImages[imageId];
-                    if (!imageUrl) return null;
-
-                    return (
-                      <View key={idx} style={{ width: 200, height: 200, marginBottom: 10 }}>
-                        <Image
-                          src={imageUrl}
-                          style={{
-                            width: '100%',
-                            height: '100%',
-                            objectFit: 'contain'
-                          }}
-                        />
-                      </View>
-                    );
-                  })}
+        {Object.entries(checklistItems).map(([category, items]) => (
+          <View key={category} style={styles.section}>
+            <Text style={styles.sectionTitle}>
+              {category.charAt(0).toUpperCase() + category.slice(1)}
+            </Text>
+            {items.map(item => {
+              const status = report.checklistStatus[category][item];
+              return (
+                <View key={item} style={styles.checklistItem}>
+                  <Image
+                    src={status.checked ? "/checkbox-checked.png" : "/checkbox-empty.png"}
+                    style={styles.checkbox}
+                  />
+                  <View style={styles.checklistText}>
+                    <Text>{item}</Text>
+                    {status.notes && (
+                      <Text style={styles.notes}>{status.notes}</Text>
+                    )}
+                  </View>
                 </View>
-              </View>
-            )}
+              );
+            })}
           </View>
         ))}
-      </View>
-    </Page>
-  </Document>
-);
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Issues Found</Text>
+          <View style={styles.severityLegend}>
+            {Object.entries(severityColors).map(([severity]) => (
+              <View key={severity} style={styles.legendItem}>
+                <View 
+                  style={[
+                    styles.legendColor, 
+                    { 
+                      backgroundColor: severityBackgrounds[severity as Severity],
+                      borderLeftWidth: 2,
+                      borderLeftColor: borderColors[severity as Severity],
+                      borderLeftStyle: 'solid' 
+                    }
+                  ]} 
+                />
+                <Text style={styles.legendText}>
+                  {severity.charAt(0).toUpperCase() + severity.slice(1)}
+                </Text>
+              </View>
+            ))}
+          </View>
+          
+          <View style={styles.issuesContainer}>
+            {report.issues.map((issue, index) => (
+              <View
+                key={index}
+                style={[
+                  styles.issue,
+                  { 
+                    backgroundColor: severityBackgrounds[issue.severity as Severity],
+                    borderLeftColor: borderColors[issue.severity as Severity]
+                  }
+                ]}
+              >
+                <View style={styles.issueHeader}>
+                  <Text style={styles.issueTitle}>Issue #{index + 1}</Text>
+                  <Text style={styles.issueSeverity}>{issue.severity} Priority</Text>
+                </View>
+
+                {(issue.objectName || issue.materialName) && (
+                  <Text style={styles.issueMetadata}>
+                    {issue.objectName && `Object: ${issue.objectName}\n`}
+                    {issue.materialName && `Material: ${issue.materialName}`}
+                  </Text>
+                )}
+
+                <Text style={styles.issueDescription}>
+                  {parseTextWithUrls(issue.description)}
+                </Text>
+
+                {issue.tags.length > 0 && (
+                  <View style={styles.tags}>
+                    {issue.tags.map(tag => (
+                      <Text key={tag} style={styles.tag}>{tag}</Text>
+                    ))}
+                  </View>
+                )}
+
+                {issue.notes && (
+                  <View>
+                    <Text style={{ fontSize: 12, fontFamily: 'Helvetica-Bold', marginBottom: 4 }}>Additional Notes:</Text>
+                    <Text style={styles.notes}>{parseTextWithUrls(issue.notes)}</Text>
+                  </View>
+                )}
+
+                {issue.imageIds && issue.imageIds.length > 0 && (
+                  <View style={styles.imageContainer}>
+                    <Text style={{ fontSize: 12, fontFamily: 'Helvetica-Bold', marginBottom: 4 }}>
+                      Attached Images:
+                    </Text>
+                    <View style={styles.imagesGrid}>
+                      {issue.imageIds.map((imageId, idx) => {
+                        const imageUrl = loadedImages[imageId];
+                        if (!imageUrl) return null;
+
+                        return (
+                          <View key={idx} style={styles.imageWrapper}>
+                            <Image
+                              src={imageUrl}
+                              style={{
+                                width: '100%',
+                                height: '100%',
+                                objectFit: 'contain'
+                              }}
+                            />
+                          </View>
+                        );
+                      })}
+                    </View>
+                  </View>
+                )}
+              </View>
+            ))}
+          </View>
+        </View>
+      </Page>
+    </Document>
+  );
+};
 
 const QAReportPDF = ({ report }: QAReportPDFProps) => {
   const [loadedImages, setLoadedImages] = useState<Record<string, string>>({});
