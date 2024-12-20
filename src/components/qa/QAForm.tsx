@@ -1,14 +1,15 @@
-'use client'; 
+'use client';
 import { useState, useEffect, useCallback } from "react";
+import { ImageUpload } from './ImageUpload';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { useToast } from "@/hooks/use-toast";
+import { useToast } from "@/hooks/use-toast"
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { FileText, Plus, Trash2 } from 'lucide-react';
-import { ImagePlus } from 'lucide-react';
-import { checklistItems, issueTags  } from './constants';
+import { checklistItems, issueTags } from './constants';
+import { deleteReportImages } from './indexedDBUtils';
 import type { QAFormProps, QAReport, QAIssue, ChecklistStatus, ChecklistItem, Severity } from './types';
 
 // QOL Helper functions
@@ -40,7 +41,6 @@ const loadFromTempStorage = (testerName: string, packName: string) => {
     if (!savedData) return null;
     
     const parsedData = JSON.parse(savedData);
-    // Check if the temp data is less than 24 hours old
     const lastSaved = new Date(parsedData.lastSaved);
     const now = new Date();
     const hoursSinceLastSave = (now.getTime() - lastSaved.getTime()) / (1000 * 60 * 60);
@@ -63,7 +63,6 @@ const clearTempStorage = (testerName: string, packName: string) => {
   localStorage.removeItem(key);
 };
 
-// QAForm component to include autosave
 const QAForm: React.FC<QAFormProps> = ({ onSubmit, initialData, testerName, packName }) => {
   const { toast } = useToast();
   const [formData, setFormData] = useState<Omit<QAReport, 'timestamp' | 'reportId'>>({
@@ -73,13 +72,15 @@ const QAForm: React.FC<QAFormProps> = ({ onSubmit, initialData, testerName, pack
     issues: []
   });
 
+  // Generate a stable report ID for image storage
+  const reportId = initialData?.reportId || `QA-${testerName}-${packName}-${Date.now()}`;
+
   // Add autosave functionality
   const performAutosave = useCallback(() => {
     saveToTempStorage(formData, testerName, packName);
   }, [formData, testerName, packName]);
 
   useEffect(() => {
-    // Check for temporary data on initial load
     if (!initialData) {
       const tempData = loadFromTempStorage(testerName, packName);
       if (tempData) {
@@ -115,7 +116,7 @@ const QAForm: React.FC<QAFormProps> = ({ onSubmit, initialData, testerName, pack
         severity: 'medium',
         tags: [],
         notes: '',
-        images: []
+        imageIds: []
       }]
     }));
   }, [initialData, testerName, packName, toast]);
@@ -124,7 +125,6 @@ const QAForm: React.FC<QAFormProps> = ({ onSubmit, initialData, testerName, pack
   useEffect(() => {
     const intervalId = setInterval(performAutosave, AUTOSAVE_INTERVAL);
     
-    // Save on window close/refresh
     const handleBeforeUnload = () => {
       performAutosave();
     };
@@ -136,12 +136,11 @@ const QAForm: React.FC<QAFormProps> = ({ onSubmit, initialData, testerName, pack
     };
   }, [performAutosave]);
 
-  // HandleSubmit to clear temp storage on successful submission
   const handleSubmit = () => {
     const report: QAReport = {
       ...formData,
       timestamp: new Date().toISOString(),
-      reportId: initialData?.reportId || `QA-${Date.now()}`
+      reportId
     };
     onSubmit(report);
     clearTempStorage(testerName, packName);
@@ -198,12 +197,22 @@ const QAForm: React.FC<QAFormProps> = ({ onSubmit, initialData, testerName, pack
         severity: 'medium' as Severity,
         tags: [],
         notes: '',
-        images: []
+        imageIds: []
       }]
     }));
   };
 
-  const removeIssue = (index: number) => {
+  const removeIssue = async (index: number) => {
+    const issue = formData.issues[index];
+    // Clean up images for this issue
+    if (issue.imageIds.length > 0) {
+      try {
+        await Promise.all(issue.imageIds.map(id => deleteReportImages(id)));
+      } catch (error) {
+        console.error('Error cleaning up images:', error);
+      }
+    }
+    
     setFormData(prev => ({
       ...prev,
       issues: prev.issues.filter((_, i) => i !== index)
@@ -234,8 +243,8 @@ const QAForm: React.FC<QAFormProps> = ({ onSubmit, initialData, testerName, pack
         </CardTitle>
       </CardHeader>
       <CardContent>
-        {/* Form JSX */}
         <div className="space-y-8">
+          {/* Form Fields */}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>QA Tester Name</Label>
@@ -253,6 +262,7 @@ const QAForm: React.FC<QAFormProps> = ({ onSubmit, initialData, testerName, pack
             </div>
           </div>
 
+          {/* Checklist */}
           <div className="space-y-6">
             {Object.entries(checklistItems).map(([category, items]) => (
               <div key={category} className="space-y-4">
@@ -280,6 +290,7 @@ const QAForm: React.FC<QAFormProps> = ({ onSubmit, initialData, testerName, pack
             ))}
           </div>
 
+          {/* Issues */}
           <div className="space-y-4">
             <h3 className="text-lg font-semibold">Issues Found</h3>
             {formData.issues.map((issue, index) => (
@@ -329,7 +340,7 @@ const QAForm: React.FC<QAFormProps> = ({ onSubmit, initialData, testerName, pack
                     <Label>Severity</Label>
                     <select
                       value={issue.severity}
-                      onChange={(e) => updateIssue(index, 'severity', e.target.value)}
+                      onChange={(e) => updateIssue(index, 'severity', e.target.value as Severity)}
                       className="w-full p-2 border rounded"
                     >
                       <option value="critical">Critical</option>
@@ -365,87 +376,16 @@ const QAForm: React.FC<QAFormProps> = ({ onSubmit, initialData, testerName, pack
                       placeholder="Additional notes..."
                       className="h-24"
                     />
-                                    </div>
+                  </div>
 
                   <div className="space-y-2">
                     <Label>Images</Label>
-                    <div className="space-y-4">
-                      <div className="flex flex-wrap gap-4">
-                        {issue.images.map((image, imgIndex) => (
-                          <div key={imgIndex} className="relative">
-                            <img
-                              src={image}
-                              alt={`Issue image ${imgIndex + 1}`}
-                              className="w-32 h-32 object-cover rounded border"
-                            />
-                            <Button
-                              variant="destructive"
-                              size="icon"
-                              className="absolute -top-2 -right-2 w-6 h-6"
-                              onClick={() => {
-                                const newImages = issue.images.filter((_, i) => i !== imgIndex);
-                                updateIssue(index, 'images', newImages);
-                              }}
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
-                          </div>
-                        ))}
-                      </div>
-                      
-                      {issue.images.length < 5 && (
-                        <div>
-                          <Input
-                            type="file"
-                            accept="image/*"
-                            multiple
-                            onChange={async (e) => {
-                              const files = Array.from(e.target.files || []);
-                              const maxSizeMB = 5;
-                              const newImages: string[] = [];
-
-                              for (const file of files) {
-                                if (file.size > maxSizeMB * 1024 * 1024) {
-                                  alert(`File ${file.name} is too large. Maximum size is ${maxSizeMB}MB.`);
-                                  continue;
-                                }
-
-                                try {
-                                  const base64 = await new Promise<string>((resolve, reject) => {
-                                    const reader = new FileReader();
-                                    reader.onload = () => resolve(reader.result as string);
-                                    reader.onerror = reject;
-                                    reader.readAsDataURL(file);
-                                  });
-                                  newImages.push(base64);
-                                } catch (error) {
-                                  console.error('Error processing image:', error);
-                                }
-                              }
-
-                              const updatedImages = [...issue.images, ...newImages].slice(0, 5);
-                              updateIssue(index, 'images', updatedImages);
-                              e.target.value = '';
-                            }}
-                            className="hidden"
-                            id={`image-upload-${index}`}
-                          />
-                          <Button
-                            type="button"
-                            variant="outline"
-                            onClick={() => document.getElementById(`image-upload-${index}`)?.click()}
-                            className="flex items-center gap-2"
-                          >
-                            <ImagePlus className="w-4 h-4" />
-                            Add Images (buggy!)
-                          </Button>
-							<p className="text-sm text-gray-800 mt-1">I <strong>strongly</strong> recommend google drive for hosting as this is quite buggy at the moment and sometimes doesn&apos;t render in the final PDF.</p>
-                          <p className="text-sm text-gray-500 mt-1">
-                            Max 5 images, 5MB each. {5 - issue.images.length} remaining.
-                          </p>
-                        </div>
-                      )}
-                    </div>
+                    <ImageUpload
+                      images={issue.imageIds}
+                      onImagesChange={(imageIds) => updateIssue(index, 'imageIds', imageIds)}
+                      maxImages={5}
+                      reportId={reportId}
+                    />
                   </div>
                 </div>
               </Card>

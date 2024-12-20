@@ -1,7 +1,8 @@
-'use client'; 
+'use client';
 import { Card } from "@/components/ui/card";
 import { checklistItems } from './constants';
-import { useRef } from "react";
+import { useEffect, useState, useRef } from "react";
+import { getImage } from './indexedDBUtils';
 import type { QARendererProps } from './types';
 
 const severityColors = {
@@ -14,6 +15,30 @@ const severityColors = {
 
 const QAReportRenderer: React.FC<QARendererProps> = ({ report }) => {
   const reportRef = useRef<HTMLDivElement>(null);
+  const [imageUrls, setImageUrls] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    const loadImages = async () => {
+      const loadedImages: Record<string, string> = {};
+
+      for (const issue of report.issues || []) {
+        if (!issue.imageIds?.length) continue;
+
+        for (const imageId of issue.imageIds) {
+          try {
+            const url = await getImage(imageId);
+            loadedImages[imageId] = url;
+          } catch (error) {
+            console.error(`Failed to load image ${imageId}:`, error);
+          }
+        }
+      }
+
+      setImageUrls(loadedImages);
+    };
+
+    loadImages();
+  }, [report]);
 
   if (!report) return null;
 
@@ -60,12 +85,13 @@ const QAReportRenderer: React.FC<QARendererProps> = ({ report }) => {
               </section>
             ))}
           </div>
-		</Card>
-        <Card className="p-8">
-          <div className="mt-12">
+        </Card>
+
+        <Card className="p-8 mt-8">
+          <div>
             <h2 className="text-2xl font-bold mb-6">Issues Found</h2>
             <div className="space-y-6">
-              {report.issues.map((issue, index) => (
+              {(report.issues || []).map((issue, index) => (
                 <div 
                   key={index}
                   className={`p-4 border-l-4 rounded ${severityColors[issue.severity]}`}
@@ -90,7 +116,7 @@ const QAReportRenderer: React.FC<QARendererProps> = ({ report }) => {
                   
                   <p className="mb-4 whitespace-pre-wrap">{issue.description}</p>
                   
-                  {issue.tags.length > 0 && (
+                  {issue.tags?.length > 0 && (
                     <div className="flex flex-wrap gap-2 mb-4">
                       {issue.tags.map(tag => (
                         <span 
@@ -110,18 +136,23 @@ const QAReportRenderer: React.FC<QARendererProps> = ({ report }) => {
                     </div>
                   )}
 
-                  {issue.images.length > 0 && (
+                  {issue.imageIds?.length > 0 && (
                     <div className="mt-4">
                       <div className="font-medium mb-2">Attached Images:</div>
                       <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                        {issue.images.map((image, imgIndex) => (
-                          <img
-                            key={imgIndex}
-                            src={image}
-                            alt={`Issue image ${imgIndex + 1}`}
-                            className="w-full h-48 object-cover rounded border"
-                          />
-                        ))}
+                        {issue.imageIds.map((imageId, imgIndex) => {
+                          const imageUrl = imageUrls[imageId];
+                          if (!imageUrl) return null;
+
+                          return (
+                            <img
+                              key={imgIndex}
+                              src={imageUrl}
+                              alt={`Issue image ${imgIndex + 1}`}
+                              className="w-full h-48 object-cover rounded border"
+                            />
+                          );
+                        })}
                       </div>
                     </div>
                   )}

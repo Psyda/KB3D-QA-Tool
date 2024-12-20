@@ -16,7 +16,7 @@ export interface QAIssue {
   severity: 'critical' | 'high' | 'medium' | 'low' | 'trivial';
   tags: string[];
   notes: string;
-  images: string[];
+  imageIds: string[]; // Changed from images to imageIds for IndexedDB references
 }
 
 export interface QAReport {

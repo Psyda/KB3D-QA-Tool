@@ -1,7 +1,10 @@
-'use client'; 
+'use client';
+
+import { useEffect, useState } from 'react';
 import { Page, Text, Font, View, Document, StyleSheet, Image, Link } from '@react-pdf/renderer';
 import type { QAReport } from './types';
 import { checklistItems } from './constants';
+import { getImage } from './indexedDBUtils';
 
 // Register Font
 Font.register({
@@ -12,14 +15,14 @@ Font.register({
     { src: "https://cdnjs.cloudflare.com/ajax/libs/ink/3.1.10/fonts/Roboto/roboto-medium-webfont.ttf", fontWeight: 500 },
     { src: "https://cdnjs.cloudflare.com/ajax/libs/ink/3.1.10/fonts/Roboto/roboto-bold-webfont.ttf", fontWeight: 600 },
   ],
-})
+});
 
 const severityColors = {
-  critical: '#FFEBEE',  // Light red
-  high: '#FFF3E0',     // Light orange
-  medium: '#FFF8E1',   // Light yellow
-  low: '#E3F2FD',      // Light blue
-  trivial: '#F5F5F5'   // Light gray
+  critical: '#FFEBEE',
+  high: '#FFF3E0',
+  medium: '#FFF8E1',
+  low: '#E3F2FD',
+  trivial: '#F5F5F5'
 };
 
 const styles = StyleSheet.create({
@@ -182,27 +185,11 @@ const parseTextWithUrls = (text: string) => {
   return result;
 };
 
-const processImageSrc = (imageData: string) => {
-  try {
-    // If it's already a base64 string without data URI prefix
-    if (!imageData.includes('data:')) {
-      return imageData;
-    }
-    
-    // If it's a data URI, extract the base64 part
-    const matches = imageData.match(/^data:image\/(png|jpeg|jpg|gif);base64,(.+)$/);
-    if (matches) {
-      return matches[2];
-    }
-    
-    return imageData;
-  } catch (error) {
-    console.error('Error processing image:', error);
-    return null;
-  }
-};
+interface QAReportPDFProps {
+  report: QAReport;
+}
 
-const QAReportPDF = ({ report }: { report: QAReport }) => (
+const PDFReport = ({ report, loadedImages }: { report: QAReport; loadedImages: Record<string, string> }) => (
   <Document>
     {/* First Page - Checklist */}
     <Page size="A4" style={styles.page}>
@@ -218,13 +205,14 @@ const QAReportPDF = ({ report }: { report: QAReport }) => (
       {/* Checklist Sections */}
       {Object.entries(checklistItems).map(([category, items]) => (
         <View key={category} style={styles.section}>
-          <Text style={styles.sectionTitle}>{category.charAt(0).toUpperCase() + category.slice(1)}</Text>
+          <Text style={styles.sectionTitle}>
+            {category.charAt(0).toUpperCase() + category.slice(1)}
+          </Text>
           {items.map(item => {
             const status = report.checklistStatus[category][item];
             return (
               <View key={item} style={styles.checklistItem}>
-				{/* eslint-disable-next-line jsx-a11y/alt-text */}
-                <Image 
+                <Image
                   src={status.checked ? "/checkbox-checked.png" : "/checkbox-empty.png"}
                   style={styles.checkbox}
                 />
@@ -245,25 +233,25 @@ const QAReportPDF = ({ report }: { report: QAReport }) => (
     <Page size="A4" style={styles.page}>
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Issues Found</Text>
-		
-		{/* Severity Legend */}
-		<View style={styles.severityLegend}>
-		<Text style={styles.legendTitle}>Severity Levels:</Text>
-		{Object.entries(severityColors).map(([severity, color]) => (
-		  <View key={severity} style={styles.legendItem}>
-			<View style={[styles.legendColor, { backgroundColor: color }]} />
-			<Text style={styles.legendText}>
-			  {severity.charAt(0).toUpperCase() + severity.slice(1)}
-			</Text>
-		  </View>
-		))}
-		</View>
-	
+
+        {/* Severity Legend */}
+        <View style={styles.severityLegend}>
+          <Text style={styles.legendTitle}>Severity Levels:</Text>
+          {Object.entries(severityColors).map(([severity, color]) => (
+            <View key={severity} style={styles.legendItem}>
+              <View style={[styles.legendColor, { backgroundColor: color }]} />
+              <Text style={styles.legendText}>
+                {severity.charAt(0).toUpperCase() + severity.slice(1)}
+              </Text>
+            </View>
+          ))}
+        </View>
+
         {report.issues.map((issue, index) => (
-          <View 
-            key={index} 
+          <View
+            key={index}
             style={[
-              styles.issue, 
+              styles.issue,
               { backgroundColor: severityColors[issue.severity] }
             ]}
           >
@@ -296,20 +284,20 @@ const QAReportPDF = ({ report }: { report: QAReport }) => (
               </View>
             )}
 
-            {issue.images && issue.images.length > 0 && (
+            {issue.imageIds && issue.imageIds.length > 0 && (
               <View>
                 <Text style={{ fontSize: 12, fontWeight: 'bold', marginTop: 10, marginBottom: 5 }}>
                   Attached Images:
                 </Text>
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
-                  {issue.images.map((imageData, idx) => {
-                    const base64Data = processImageSrc(imageData);
-                    if (!base64Data) return null;
-                    
+                  {issue.imageIds.map((imageId, idx) => {
+                    const imageUrl = loadedImages[imageId];
+                    if (!imageUrl) return null;
+
                     return (
                       <View key={idx} style={{ width: 200, height: 200, marginBottom: 10 }}>
                         <Image
-                          src={`data:image/jpeg;base64,${base64Data}`}
+                          src={imageUrl}
                           style={{
                             width: '100%',
                             height: '100%',
@@ -328,5 +316,44 @@ const QAReportPDF = ({ report }: { report: QAReport }) => (
     </Page>
   </Document>
 );
+
+const QAReportPDF = ({ report }: QAReportPDFProps) => {
+  const [loadedImages, setLoadedImages] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    const loadAllImages = async () => {
+      const imagePromises: Promise<[string, string]>[] = [];
+      
+      report.issues?.forEach(issue => {
+        if (!issue.imageIds) return;
+        
+        issue.imageIds.forEach(imageId => {
+          if (!imageId) return;
+          imagePromises.push(
+            getImage(imageId)
+              .then(url => [imageId, url] as [string, string])
+              .catch(err => {
+                console.error(`Error loading image ${imageId}:`, err);
+                return [imageId, ''] as [string, string];
+              })
+          );
+        });
+      });
+
+      try {
+        const loadedImagePairs = await Promise.all(imagePromises);
+        setLoadedImages(
+          Object.fromEntries(loadedImagePairs)
+        );
+      } catch (error) {
+        console.error('Error loading images for PDF:', error);
+      }
+    };
+
+    loadAllImages();
+  }, [report]);
+
+  return <PDFReport report={report} loadedImages={loadedImages} />;
+};
 
 export default QAReportPDF;

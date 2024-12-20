@@ -1,8 +1,9 @@
-'use client'; 
+'use client';
 
 import { useState, useEffect } from "react";
 import QAForm from './QAForm';
 import QAReportRenderer from './QAReportRenderer';
+import StorageOverview from './StorageOverview';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -19,6 +20,12 @@ import {
 } from "@/components/ui/dialog";
 
 const QAReportApp = () => {
+  // Initialize image cleanup schedule
+  useEffect(() => {
+    import('./cleanupUtils').then(({ startCleanupSchedule }) => {
+      startCleanupSchedule();
+    });
+  }, []);
   const [report, setReport] = useState<QAReport | null>(null);
   const [isEditing, setIsEditing] = useState(true);
   const [showInitialDialog, setShowInitialDialog] = useState(true);
@@ -26,7 +33,6 @@ const QAReportApp = () => {
   const [packName, setPackName] = useState('');
   const [existingFile, setExistingFile] = useState<string | null>(null);
 
-  // Check for existing report in localStorage
   useEffect(() => {
     if (testerName && packName) {
       const key = `qa-report-${testerName}-${packName}`;
@@ -58,6 +64,30 @@ const QAReportApp = () => {
       }
     } catch (error) {
       console.error('Error loading report:', error);
+    }
+  };
+
+  const handleProjectSelect = (selectedTesterName: string, selectedPackName: string) => {
+    setTesterName(selectedTesterName);
+    setPackName(selectedPackName);
+    const key = `qa-report-${selectedTesterName}-${selectedPackName}`;
+    const savedReport = localStorage.getItem(key);
+    if (savedReport) {
+      const loadedReport = JSON.parse(savedReport) as QAReport;
+      setReport(loadedReport);
+      setIsEditing(false);
+      setShowInitialDialog(false);
+    }
+  };
+
+  const handleProjectDelete = (key: string) => {
+    try {
+      localStorage.removeItem(key);
+      if (key === existingFile) {
+        setExistingFile(null);
+      }
+    } catch (error) {
+      console.error('Error deleting project:', error);
     }
   };
 
@@ -97,50 +127,56 @@ const QAReportApp = () => {
   if (showInitialDialog) {
     return (
       <Dialog open={showInitialDialog} onOpenChange={setShowInitialDialog}>
-        <DialogContent>
+        <DialogContent className="max-w-4xl">
           <DialogHeader>
             <DialogTitle>Start QA Report</DialogTitle>
             <DialogDescription>
               Enter the tester name and pack name to begin
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 pt-4">
-            <div className="space-y-2">
-              <Label htmlFor="testerName">QA Tester Name</Label>
-              <Input
-                id="testerName"
-                value={testerName}
-                onChange={(e) => setTesterName(e.target.value)}
-                placeholder="Enter tester name"
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="packName">Pack Name</Label>
-              <Input
-                id="packName"
-                value={packName}
-                onChange={(e) => setPackName(e.target.value)}
-                placeholder="Enter pack name"
-                required
-              />
-            </div>
-            <div className="flex gap-4 pt-4">
-              <Button
-                onClick={handleStartNew}
-                disabled={!testerName || !packName}
-              >
-                Start New Report
-              </Button>
-              {existingFile && (
+          <div className="grid grid-cols-2 gap-6 pt-4">
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="testerName">QA Tester Name</Label>
+                <Input
+                  id="testerName"
+                  value={testerName}
+                  onChange={(e) => setTesterName(e.target.value)}
+                  placeholder="Enter tester name"
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="packName">Pack Name</Label>
+                <Input
+                  id="packName"
+                  value={packName}
+                  onChange={(e) => setPackName(e.target.value)}
+                  placeholder="Enter pack name"
+                  required
+                />
+              </div>
+              <div className="flex gap-4">
                 <Button
-                  variant="secondary"
-                  onClick={handleLoadExisting}
+                  onClick={handleStartNew}
+                  disabled={!testerName || !packName}
                 >
-                  Load Existing Report
+                  Start New Report
                 </Button>
-              )}
+                {existingFile && (
+                  <Button
+                    variant="secondary"
+                    onClick={handleLoadExisting}
+                  >
+                    Load Existing Report
+                  </Button>
+                )}
+              </div>
             </div>
+            <StorageOverview
+              onProjectSelect={handleProjectSelect}
+              onProjectDelete={handleProjectDelete}
+            />
           </div>
         </DialogContent>
       </Dialog>
